@@ -1,18 +1,18 @@
 [package]
-name = "stylus-hello-world"
-version = "0.1.11"
+name = "gyges"
+version = "0.0.1"
 edition = "2021"
-license = "MIT OR Apache-2.0"
-homepage = "https://github.com/OffchainLabs/stylus-hello-world"
-repository = "https://github.com/OffchainLabs/stylus-hello-world"
-keywords = ["arbitrum", "ethereum", "stylus", "alloy"]
-description = "Stylus hello world example"
+license = "MIT"
+#homepage = "https://github.com/OffchainLabs/stylus-hello-world"
+#repository = "https://github.com/OffchainLabs/stylus-hello-world"
+#keywords = ["arbitrum", "ethereum", "stylus", "alloy"]
+#description = "Stylus hello world example"
 
 [dependencies]
 alloy-primitives = "=0.8.20"
 alloy-sol-types = "=0.8.20"
 mini-alloc = "0.8.3"
-stylus-sdk = "0.8.3"
+stylus-sdk = { version = "0.8.3", features = ["debug"] }
 hex = "0.4.3"
 dotenv = "0.15.0"
 
@@ -27,7 +27,7 @@ export-abi = ["stylus-sdk/export-abi"]
 debug = ["stylus-sdk/debug"]
 
 [[bin]]
-name = "stylus-hello-world"
+name = "gyges"
 path = "src/main.rs"
 
 [lib]

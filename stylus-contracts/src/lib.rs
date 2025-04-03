@@ -1,45 +1,55 @@
-//!
-//! Stylus Hello World
-//!
-//! The following contract implements the Counter example from Foundry.
-//!
-//! ```solidity
-//! contract Counter {
-//!     uint256 public number;
-//!     function setNumber(uint256 newNumber) public {
-//!         number = newNumber;
-//!     }
-//!     function increment() public {
-//!         number++;
-//!     }
-//! }
-//! ```
-//!
-//! The program is ABI-equivalent with Solidity, which means you can call it from both Solidity and Rust.
-//! To do this, run `cargo stylus export-abi`.
-//!
-//! Note: this code is a template-only and has not been audited.
-//!
-// Allow `cargo stylus export-abi` to generate a main function.
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
 extern crate alloc;
 
-/// Import items from the SDK. The prelude contains common traits and macros.
-use stylus_sdk::{alloy_primitives::U256, prelude::*};
+use alloy_primitives::{Address, FixedBytes, U256};
+use alloy_sol_types::sol;
+use stylus_sdk::{block, console, evm, msg, prelude::*};
 
-// Define some persistent storage using the Solidity ABI.
-// `Counter` will be the entrypoint.
 sol_storage! {
     #[entrypoint]
-    pub struct Counter {
-        uint256 number;
+    pub struct Gyges {
+        uint256 nb_games;
+        mapping(uint256 => Game) games;
+        mapping(string => address) usernames;
+        mapping(address => Player) players;
+    }
+
+    pub struct Game { // by id
+        address playerone;
+        address playertwo;
+        bytes32 state; // board, turn, win
+        uint256 start;
+        uint256 end;
+    }
+
+    pub struct Player { // by address
+        string username;
+        uint256 nb_games;
+        mapping(uint256 => uint256) game_ids;
     }
 }
 
-/// Declare that `Counter` is a contract with the following external methods.
+sol! {
+    error UnknownError();
+}
+
+#[derive(SolidityError)]
+pub enum GygesError {
+    UnknownError(UnknownError),
+}
+
 #[public]
-impl Counter {
-    /// Gets the number from storage.
+impl Gyges {
+    pub fn register_username(&self, username: String) -> String {
+        console!("Registering username: {}", username);
+        //if self.usernames.get(username).is_some() {}
+        //let addr = msg::sender();
+        //self.usernames.setter(username).set(addr);
+        //self.usernames.setter //set_str
+        username
+    }
+
+    /* /// Gets the number from storage.
     pub fn number(&self) -> U256 {
         self.number.get()
     }
@@ -70,7 +80,7 @@ impl Counter {
     pub fn add_from_msg_value(&mut self) {
         let number = self.number.get();
         self.set_number(number + self.vm().msg_value());
-    }
+    } */
 }
 
 #[cfg(test)]
@@ -78,12 +88,12 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_counter() {
+    fn test_gyges() {
         use stylus_sdk::testing::*;
         let vm = TestVM::default();
-        let mut contract = Counter::from(&vm);
+        let mut _contract = Gyges::from(&vm);
 
-        assert_eq!(U256::ZERO, contract.number());
+        /* assert_eq!(U256::ZERO, contract.number());
 
         contract.increment();
         assert_eq!(U256::from(1), contract.number());
@@ -101,6 +111,6 @@ mod test {
         vm.set_value(U256::from(2));
 
         contract.add_from_msg_value();
-        assert_eq!(U256::from(102), contract.number());
+        assert_eq!(U256::from(102), contract.number()); */
     }
 }
