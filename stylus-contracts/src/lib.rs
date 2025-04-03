@@ -3,7 +3,7 @@ extern crate alloc;
 
 use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_sol_types::sol;
-use stylus_sdk::{block, console, evm, msg, prelude::*};
+use stylus_sdk::{block, console, prelude::*};
 
 sol_storage! {
     #[entrypoint]
@@ -30,23 +30,26 @@ sol_storage! {
 }
 
 sol! {
-    error UnknownError();
+    error UsernameAlreadyExists(string username);
 }
 
 #[derive(SolidityError)]
 pub enum GygesError {
-    UnknownError(UnknownError),
+    UsernameAlreadyExists(UsernameAlreadyExists),
 }
 
 #[public]
 impl Gyges {
-    pub fn register_username(&self, username: String) -> String {
-        console!("Registering username: {}", username);
-        //if self.usernames.get(username).is_some() {}
-        //let addr = msg::sender();
-        //self.usernames.setter(username).set(addr);
-        //self.usernames.setter //set_str
-        username
+    pub fn register_username(&mut self, username: String) -> Result<(), GygesError> {
+        if self.usernames.getter(username.clone()).get() != Address::new([0; 20]) {
+            return Err(GygesError::UsernameAlreadyExists(UsernameAlreadyExists {
+                username: username.clone(),
+            }));
+        }
+        let sender = self.vm().msg_sender();
+        self.usernames.setter(username.clone()).set(sender);
+        console!("Username '{}' registered", username);
+        Ok(())
     }
 
     /* /// Gets the number from storage.
