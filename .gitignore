@@ -6,3 +6,6 @@ nitro-devnode
 
 # Temp files
 **/*.txt
+
+# Others
+.vscode

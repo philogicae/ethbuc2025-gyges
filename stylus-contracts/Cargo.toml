@@ -12,7 +12,7 @@ license = "MIT"
 alloy-primitives = "=0.8.20"
 alloy-sol-types = "=0.8.20"
 mini-alloc = "0.8.3"
-stylus-sdk = { version = "0.8.3", features = ["debug"] }
+stylus-sdk = { version = "0.8.3" } #, features = ["debug"] }
 hex = "0.4.3"
 dotenv = "0.15.0"
 
@@ -24,7 +24,7 @@ stylus-sdk = { version = "0.8.3", features = ["stylus-test"] }
 
 [features]
 export-abi = ["stylus-sdk/export-abi"]
-debug = ["stylus-sdk/debug"]
+#debug = ["stylus-sdk/debug"]
 
 [[bin]]
 name = "gyges"
@@ -42,3 +42,7 @@ panic = "abort"
 # If you need to reduce the binary size, it is advisable to try other
 # optimization levels, such as "s" and "z"
 opt-level = "z"
+
+rpath = false            # no run-time search path
+debug-assertions = false # prune debug assertions
+incremental = false      # no incremental builds
