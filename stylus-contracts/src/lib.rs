@@ -10,8 +10,8 @@ sol_storage! {
     pub struct Gyges {
         uint256 nb_games;
         mapping(uint256 => Game) games;
-        mapping(string => address) usernames;
         mapping(address => Player) players;
+        mapping(string => address) usernames;
     }
 
     pub struct Game { // by id
@@ -48,42 +48,28 @@ impl Gyges {
         }
         let sender = self.vm().msg_sender();
         self.usernames.setter(username.clone()).set(sender);
+        self.players
+            .setter(sender)
+            .username
+            .set_str(username.clone());
         console!("Username '{}' registered", username);
         Ok(())
     }
 
-    /* /// Gets the number from storage.
-    pub fn number(&self) -> U256 {
-        self.number.get()
+    pub fn get_address_by_username(&self, username: String) -> Address {
+        self.usernames.get(username)
     }
 
-    /// Sets a number in storage to a user-specified value.
-    pub fn set_number(&mut self, new_number: U256) {
-        self.number.set(new_number);
+    pub fn get_player_by_address(&self, address: Address) -> (String, U256) {
+        let player = self.players.get(address);
+        (player.username.get_string(), player.nb_games.get())
     }
 
-    /// Sets a number in storage to a user-specified value.
-    pub fn mul_number(&mut self, new_number: U256) {
-        self.number.set(new_number * self.number.get());
+    pub fn get_player_by_username(&self, username: String) -> (Address, String, U256) {
+        let address = self.get_address_by_username(username);
+        let player = self.get_player_by_address(address);
+        (address, player.0, player.1)
     }
-
-    /// Sets a number in storage to a user-specified value.
-    pub fn add_number(&mut self, new_number: U256) {
-        self.number.set(new_number + self.number.get());
-    }
-
-    /// Increments `number` and updates its value in storage.
-    pub fn increment(&mut self) {
-        let number = self.number.get();
-        self.set_number(number + U256::from(1));
-    }
-
-    /// Adds the wei value from msg_value to the number in storage.
-    #[payable]
-    pub fn add_from_msg_value(&mut self) {
-        let number = self.number.get();
-        self.set_number(number + self.vm().msg_value());
-    } */
 }
 
 #[cfg(test)]
@@ -95,25 +81,6 @@ mod test {
         use stylus_sdk::testing::*;
         let vm = TestVM::default();
         let mut _contract = Gyges::from(&vm);
-
-        /* assert_eq!(U256::ZERO, contract.number());
-
-        contract.increment();
-        assert_eq!(U256::from(1), contract.number());
-
-        contract.add_number(U256::from(3));
-        assert_eq!(U256::from(4), contract.number());
-
-        contract.mul_number(U256::from(2));
-        assert_eq!(U256::from(8), contract.number());
-
-        contract.set_number(U256::from(100));
-        assert_eq!(U256::from(100), contract.number());
-
-        // Override the msg value for future contract method invocations.
-        vm.set_value(U256::from(2));
-
-        contract.add_from_msg_value();
-        assert_eq!(U256::from(102), contract.number()); */
+        // assert_eq!(U256::ZERO, contract.number());
     }
 }
