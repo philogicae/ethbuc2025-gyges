@@ -21,11 +21,14 @@ Read the rules: [here](https://boardspace.net/english/about_gyges.html)
 
 ## Notes
 
+Tbh I focused on understanding the specificities of Rust/Stylus and optimizing EVM storage (The state of the game fits on a single bytes32).
+
 Didn't have time to:
 - Restrict paths properly: should not be able to pass by an occupied cell or a cell already used during the turn.
 - Placement restriction when 'flying' (after replacing a piece): can place a piece on any empty cell, but should not be able to go behind the opponent line.
 
 ## TODO's
+
 * Improve the smart contract:
     - Heavy refactoring
     - Add missing restrictions
