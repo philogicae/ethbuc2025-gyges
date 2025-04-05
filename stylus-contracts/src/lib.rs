@@ -225,10 +225,8 @@ impl Gyges {
                 } else {
                     piece
                 } {
-                    1 => dist == 1,
-                    2 => dist == 2,
                     3 => dist % 2 == 1,
-                    _ => false,
+                    _ => true,
                 })
             {
                 return Err(GygesError::InvalidOperation(InvalidOperation {
@@ -300,6 +298,13 @@ impl Gyges {
                     }
                 }
             }
+        }
+
+        // Check for safe landing after jump
+        if jump_power > 0 {
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "Incomplete jump".to_string(),
+            }));
         }
 
         // If replacement was used
