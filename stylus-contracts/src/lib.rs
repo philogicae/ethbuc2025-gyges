@@ -155,9 +155,14 @@ impl Gyges {
     pub fn play(&mut self, action: Vec<U256>) -> Result<(), GygesError> {
         /* Action encoding example (each step = 3 values)
          * action[0..3] = [start_x, start_y, game_id]
-         * action[3..6] = [cell_x, cell_y, 1] // Busy cell -> choose(1)='jump'
-         * action[6..9] = [cell_x, cell_y, 2] // Busy cell -> choose(2)='replace'
-         * action[9..12] = [end_x, end_y, 0] // Empty cell -> End of turn */
+         * action[3..6] = [cell_x, cell_y, 1]: Busy cell -> choose(1)='jump'
+         * action[6..9] = [cell_x, cell_y, 2]: Busy cell -> choose(2)='replace'
+         * action[9..12] = [end_x, end_y, 0]: Free cell -> End of turn
+         *
+         * Ending example:
+         * ...
+         * action[9..12] = [end_x, end_y, 2]: Free cell at (step-1) -> choose(3)='win'
+         * */
 
         let action = action.to_vec();
         let game_id: U256 = action[2];
@@ -225,8 +230,9 @@ impl Gyges {
                 } else {
                     piece
                 } {
+                    1..=2 => true,
                     3 => dist % 2 == 1,
-                    _ => true,
+                    _ => false,
                 })
             {
                 return Err(GygesError::InvalidOperation(InvalidOperation {
