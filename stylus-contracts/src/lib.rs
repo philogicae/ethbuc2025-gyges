@@ -67,15 +67,28 @@ impl Gyges {
         self.usernames.get(username)
     }
 
-    pub fn get_player_by_address(&self, address: Address) -> (String, U256) {
+    pub fn get_player_by_address(&self, address: Address) -> (String, U256, U256, Vec<U256>) {
         let player = self.players.get(address);
-        (player.username.get_string(), player.nb_games.get())
+        let nb_games = player.nb_games.get();
+        let mut games = Vec::new();
+        if nb_games > U256::ZERO {
+            for i in 0..nb_games.try_into().unwrap() {
+                let game_id = player.game_ids.get(U256::from(i));
+                games.push(game_id);
+            }
+        }
+        (
+            player.username.get_string(),
+            nb_games,
+            player.nb_wins.get(),
+            games,
+        )
     }
 
-    pub fn get_player_by_username(&self, username: String) -> (Address, String, U256) {
+    pub fn get_player_by_username(&self, username: String) -> (Address, U256, U256, Vec<U256>) {
         let address = self.get_address_by_username(username);
         let player = self.get_player_by_address(address);
-        (address, player.0, player.1)
+        (address, player.1, player.2, player.3)
     }
 
     pub fn new_game(&mut self, adversary: String) -> Result<(), GygesError> {
@@ -89,18 +102,17 @@ impl Gyges {
                 username: adversary,
             }));
         }
-        /* if adversary_addr == sender {
+        if adversary_addr == sender {
             return Err(GygesError::InvalidOperation(InvalidOperation {
                 message: "Cannot play against yourself".to_string(),
             }));
-        } */
-        // TODO: for quick tests
+        }
 
         let game_id = self.nb_games.get();
         let new_board = self.gen_new_board();
 
         // Gyges layout
-        self.nb_games.set(game_id + U256::from(1));
+        self.nb_games.set(game_id.wrapping_add(U256::from(1)));
 
         // Game layout
         let mut new_game = self.games.setter(game_id);
@@ -111,13 +123,17 @@ impl Gyges {
         // Player 1 layout
         let player_one_nbg = self.players.get(sender).nb_games.get();
         let mut player_one = self.players.setter(sender);
-        player_one.nb_games.set(player_one_nbg + U256::from(1));
+        player_one
+            .nb_games
+            .set(player_one_nbg.wrapping_add(U256::from(1)));
         player_one.game_ids.setter(player_one_nbg).set(game_id);
 
         // Player 2 layout
         let player_two_nbg = self.players.get(adversary_addr).nb_games.get();
         let mut player_two = self.players.setter(adversary_addr);
-        player_two.nb_games.set(player_two_nbg + U256::from(1));
+        player_two
+            .nb_games
+            .set(player_two_nbg.wrapping_add(U256::from(1)));
         player_two.game_ids.setter(player_two_nbg).set(game_id);
 
         log(
