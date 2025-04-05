@@ -12,6 +12,7 @@ with open(path.join(current_dir, "output.txt"), "r", encoding="utf-8") as f:
 
 if data.startswith("Error:"):
     if "-32000" in data:
+        rprint("Error: execution reverted")
         exit()
     data = data.split("data: ")[1][1:-1]
 elif data.startswith("["):

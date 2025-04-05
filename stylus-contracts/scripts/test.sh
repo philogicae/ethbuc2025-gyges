@@ -14,10 +14,12 @@ cast send --private-key $PRIV_KEY_2 -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS 
 #cast call --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "getPlayerByAddress(address)((string, uint256, uint256, uint256[]))" $WALLET 2>&1 | tee ./scripts/output.txt | ./scripts/decode.py
 
 cast send --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "newGame(string)" "player2" 2>&1 | tee ./scripts/output.txt | ./scripts/decode.py
+cast call --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "getPlayerByUsername(string)((address, uint256, uint256, uint256[]))" "player1" 2>&1 | tee ./scripts/output.txt | ./scripts/decode.py
+cast call --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "getPlayerByUsername(string)((address, uint256, uint256, uint256[]))" "player2" 2>&1 | tee ./scripts/output.txt | ./scripts/decode.py
 cast call --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "gameById(uint256)((address, address, bytes32))" "0" 2>&1 | tee ./scripts/output.txt | ./scripts/display.py
 
-cast call --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "getPlayerByUsername(string)((address, uint256, uint256, uint256[]))" "player1" 2>&1 | tee ./scripts/output.txt | ./scripts/decode.py
-cast call --private-key $PRIV_KEY_2 -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "getPlayerByUsername(string)((address, uint256, uint256, uint256[]))" "player2" 2>&1 | tee ./scripts/output.txt | ./scripts/decode.py
+cast send --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "play(uint256,uint256[])" "0" "[5,4]" 2>&1 | tee ./scripts/output.txt | ./scripts/decode.py
+cast call --private-key $PRIV_KEY -r=$RPC_URL --json $STYLUS_CONTRACT_ADDRESS "gameById(uint256)((address, address, bytes32))" "0" 2>&1 | tee ./scripts/output.txt | ./scripts/display.py
 
 #--------------------------
 

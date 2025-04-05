@@ -1,7 +1,7 @@
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
 extern crate alloc;
 
-use alloy_primitives::{Address, FixedBytes, U256};
+use alloy_primitives::*;
 use alloy_sol_types::sol;
 use stylus_sdk::prelude::*;
 use stylus_sdk::stylus_core::log;
@@ -30,19 +30,13 @@ sol_storage! {
 }
 
 sol! {
-    event GameCreated(uint256 game_id, address player_one, address player_two);
-
-    error UserNotInitialized();
-    error UserAlreadyExists(string username);
-    error UserNotFound(string username);
+    event Created(uint256 game_id, address player_one, address player_two);
+    event Played(uint256 game_id, address player, uint256[] actions);
     error InvalidOperation(string message);
 }
 
 #[derive(SolidityError)]
 pub enum GygesError {
-    UserNotInitialized(UserNotInitialized),
-    UserAlreadyExists(UserAlreadyExists),
-    UserNotFound(UserNotFound),
     InvalidOperation(InvalidOperation),
 }
 
@@ -50,8 +44,8 @@ pub enum GygesError {
 impl Gyges {
     pub fn register_username(&mut self, username: String) -> Result<(), GygesError> {
         if self.usernames.getter(username.clone()).get() != Address::new([0; 20]) {
-            return Err(GygesError::UserAlreadyExists(UserAlreadyExists {
-                username: username.clone(),
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "User already exists".to_string(),
             }));
         }
         let sender = self.vm().msg_sender();
@@ -94,12 +88,14 @@ impl Gyges {
     pub fn new_game(&mut self, adversary: String) -> Result<(), GygesError> {
         let sender = self.vm().msg_sender();
         if self.players.get(sender).username.get_string() == "" {
-            return Err(GygesError::UserNotInitialized(UserNotInitialized {}));
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "Register first".to_string(),
+            }));
         }
         let adversary_addr = self.get_address_by_username(adversary.clone());
         if adversary_addr == Address::new([0; 20]) {
-            return Err(GygesError::UserNotFound(UserNotFound {
-                username: adversary,
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "Adversary not found".to_string(),
             }));
         }
         if adversary_addr == sender {
@@ -138,7 +134,7 @@ impl Gyges {
 
         log(
             self.vm(),
-            GameCreated {
+            Created {
                 game_id,
                 player_one: sender,
                 player_two: adversary_addr,
@@ -154,6 +150,75 @@ impl Gyges {
             game.player_two.get(),
             game.state.get(),
         )
+    }
+
+    pub fn play(&mut self, game_id: U256, actions: Vec<U256>) -> Result<(), GygesError> {
+        let sender = self.vm().msg_sender();
+        let game = self.games.get(game_id);
+        let is_player_one = game.player_one.get() == sender;
+        let is_player_two = game.player_two.get() == sender;
+        if !(is_player_one || is_player_two) {
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "Not your game".to_string(),
+            }));
+        }
+        let state_bytes = game.state.get();
+        let state = state_bytes.as_slice();
+        if state[24..28] != [0; 4] {
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "Game already finished".to_string(),
+            }));
+        }
+        if (is_player_one && state[31] != 1) || (is_player_two && state[31] != 2) {
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "Not your turn".to_string(),
+            }));
+        }
+
+        // Checks selection
+        let actions = actions.to_vec();
+        let x: usize = actions[0].try_into().unwrap();
+        let y: usize = actions[1].try_into().unwrap();
+        let ceil_idx = x * 6 + y;
+        let piece = if ceil_idx % 2 == 0 {
+            state[ceil_idx / 2] >> 4
+        } else {
+            state[ceil_idx / 2] & 15
+        };
+        if !(x < 6
+            && y < 6
+            && piece > 0
+            && if is_player_two {
+                x == 0 || state[0..(x * 6) / 2].iter().all(|&b| b == 0)
+            } else {
+                x == 5 || state[(x * 6) / 2..18].iter().all(|&b| b == 0)
+            })
+        {
+            return Err(GygesError::InvalidOperation(InvalidOperation {
+                message: "Invalid piece selected".to_string(),
+            }));
+        }
+
+        // Checks moves
+        // TODO
+
+        // Update game state
+        let mut new_state = state.to_vec();
+        new_state[31] = if is_player_one { 2 } else { 1 };
+        self.games
+            .setter(game_id)
+            .state
+            .set(FixedBytes::from_slice(&new_state));
+
+        log(
+            self.vm(),
+            Played {
+                game_id,
+                player: sender,
+                actions: vec![U256::from(x), U256::from(y), U256::from(piece)],
+            },
+        );
+        Ok(())
     }
 }
 
@@ -192,15 +257,15 @@ impl Gyges {
                     (first_row[2] << 4) | first_row[3],
                     (first_row[4] << 4) | first_row[5],
                 ], // 1 row (3 bytes)
-                vec![0; 12], // 4 empty rows (12 bytes)
+                [0; 12].to_vec(), // 4 empty rows (12 bytes)
                 vec![
                     (last_row[0] << 4) | last_row[1],
                     (last_row[2] << 4) | last_row[3],
                     (last_row[4] << 4) | last_row[5],
                 ], // 1 row (3 bytes)
-                vec![0; 2],  // padding (2 bytes)
+                [0; 2].to_vec(),  // padding (2 bytes)
                 timestamp.to_be_bytes()[4..].to_vec(), // start (4 bytes)
-                vec![0; 8],  // end=null (4 bytes) + turn=0 (4 bytes)
+                [0, 0, 0, 0, 0, 0, 0, 1].to_vec(), // end=null (4 bytes) + turn=1 (4 bytes)
             ]
             .concat()
             .as_slice(),

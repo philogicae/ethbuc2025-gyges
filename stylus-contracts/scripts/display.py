@@ -24,20 +24,21 @@ def timestamp_to_date(timestamp):
     )
 
 
-print("\n--------- STATE -----------")
+rprint("\n--------- STATE -----------")
+rprint(f"State: {board}-{start}-{end}-{turn}")
 rprint(
-    f"Start: {timestamp_to_date(start)}\nEnd: {timestamp_to_date(end) if end != '00000000' else '-'}\nTurn: {'player 1' if bool(int(turn)) else 'player 2'}"
+    f"Start: {timestamp_to_date(start)}\nEnd: {timestamp_to_date(end) if end != '00000000' else '-'}\nTurn: {'player 1' if int(turn) == 1 else 'player 2'}"
 )
 
 
 def print_board(board_str):
     grid = [list(board_str[i * 6 : (i + 1) * 6]) for i in range(6)]
-    print("\n    1   2   3   4   5   6")
-    print("  -------- player 2 -------")
+    rprint("\n y  0   1   2   3   4   5")
+    rprint("x -------- player 2 -------")
     for i, row in enumerate(grid):
-        print(f"{i+1} | {' | '.join(c if c != '0' else ' ' for c in row)} |")
-    print("  -------- player 1 -------")
+        rprint(f"{i} | {' | '.join(c if c != '0' else ' ' for c in row)} |")
+    rprint("  -------- player 1 -------")
 
 
 print_board(board)
-rprint("---------------------------\n")
+rprint("---------------------------")
