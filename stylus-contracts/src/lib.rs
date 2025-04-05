@@ -85,20 +85,20 @@ impl Gyges {
         (address, player.1, player.2, player.3)
     }
 
-    pub fn new_game(&mut self, adversary: String) -> Result<(), GygesError> {
+    pub fn new_game(&mut self, opponent: String) -> Result<(), GygesError> {
         let sender = self.vm().msg_sender();
         if self.players.get(sender).username.get_string() == "" {
             return Err(GygesError::InvalidOperation(InvalidOperation {
                 message: "Register first".to_string(),
             }));
         }
-        let adversary_addr = self.get_address_by_username(adversary.clone());
-        if adversary_addr == Address::new([0; 20]) {
+        let opponent_addr = self.get_address_by_username(opponent.clone());
+        if opponent_addr == Address::new([0; 20]) {
             return Err(GygesError::InvalidOperation(InvalidOperation {
-                message: "Adversary not found".to_string(),
+                message: "Opponent not found".to_string(),
             }));
         }
-        if adversary_addr == sender {
+        if opponent_addr == sender {
             return Err(GygesError::InvalidOperation(InvalidOperation {
                 message: "Cannot play against yourself".to_string(),
             }));
@@ -113,7 +113,7 @@ impl Gyges {
         // Game layout
         let mut new_game = self.games.setter(game_id);
         new_game.player_one.set(sender);
-        new_game.player_two.set(adversary_addr);
+        new_game.player_two.set(opponent_addr);
         new_game.state.set(new_board);
 
         // Player 1 layout
@@ -125,8 +125,8 @@ impl Gyges {
         player_one.game_ids.setter(player_one_nbg).set(game_id);
 
         // Player 2 layout
-        let player_two_nbg = self.players.get(adversary_addr).nb_games.get();
-        let mut player_two = self.players.setter(adversary_addr);
+        let player_two_nbg = self.players.get(opponent_addr).nb_games.get();
+        let mut player_two = self.players.setter(opponent_addr);
         player_two
             .nb_games
             .set(player_two_nbg.wrapping_add(U256::from(1)));
@@ -137,7 +137,7 @@ impl Gyges {
             Created {
                 game_id,
                 player_one: sender,
-                player_two: adversary_addr,
+                player_two: opponent_addr,
             },
         );
         Ok(())
@@ -325,6 +325,7 @@ impl Gyges {
 
             // Place it if valid
             if new_x < 6 && new_y < 6 && cell == 0 {
+                // TODO: Check placement not behind opponent zone
                 new_state[cell_idx_new / 2] = if is_first_cell {
                     saved_piece << 4 | alt_cell
                 } else {
@@ -336,6 +337,8 @@ impl Gyges {
                 }));
             }
         }
+
+        // TODO: Check win condition
 
         // Update new state
         new_state[31] = if is_player_one { 2 } else { 1 };
