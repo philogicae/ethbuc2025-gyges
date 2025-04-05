@@ -27,7 +27,7 @@ def timestamp_to_date(timestamp):
 rprint("\n--------- STATE -----------")
 rprint(f"State: {board}-{start}-{end}-{turn}")
 rprint(
-    f"Start: {timestamp_to_date(start)}\nEnd: {timestamp_to_date(end) if end != '00000000' else '-'}\nTurn: {'player 1' if int(turn) == 1 else 'player 2'}"
+    f"Start: {timestamp_to_date(start)}\nEnd: {timestamp_to_date(end) if end != '00000000' else '-'}\n{'Turn' if end == '00000000' else 'Winner'}: {'player 1' if int(turn) == 1 else 'player 2'}"
 )
 
 

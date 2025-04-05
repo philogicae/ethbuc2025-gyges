@@ -31,7 +31,7 @@ sol_storage! {
 
 sol! {
     event Created(uint256 game_id, address player_one, address player_two);
-    event Played(uint256 game_id, address player, uint256[] actions);
+    event Played(uint256 game_id, address player, uint256[] action);
     error InvalidOperation(string message);
 }
 
@@ -152,7 +152,15 @@ impl Gyges {
         )
     }
 
-    pub fn play(&mut self, game_id: U256, actions: Vec<U256>) -> Result<(), GygesError> {
+    pub fn play(&mut self, action: Vec<U256>) -> Result<(), GygesError> {
+        /* Action encoding example (each step = 3 values)
+         * action[0..3] = [start_x, start_y, game_id]
+         * action[3..6] = [cell_x, cell_y, 1] // Busy cell -> choose(1)='jump'
+         * action[6..9] = [cell_x, cell_y, 2] // Busy cell -> choose(2)='replace'
+         * action[9..12] = [end_x, end_y, 0] // Empty cell -> End of turn */
+
+        let action = action.to_vec();
+        let game_id: U256 = action[2];
         let sender = self.vm().msg_sender();
         let game = self.games.get(game_id);
         let is_player_one = game.player_one.get() == sender;
@@ -166,7 +174,7 @@ impl Gyges {
         let state = state_bytes.as_slice();
         if state[24..28] != [0; 4] {
             return Err(GygesError::InvalidOperation(InvalidOperation {
-                message: "Game already finished".to_string(),
+                message: "Game already terminated".to_string(),
             }));
         }
         if (is_player_one && state[31] != 1) || (is_player_two && state[31] != 2) {
@@ -176,14 +184,13 @@ impl Gyges {
         }
 
         // Checks selection
-        let actions = actions.to_vec();
-        let x: usize = actions[0].try_into().unwrap();
-        let y: usize = actions[1].try_into().unwrap();
-        let ceil_idx = x * 6 + y;
-        let piece = if ceil_idx % 2 == 0 {
-            state[ceil_idx / 2] >> 4
+        let mut x: usize = action[0].try_into().unwrap();
+        let mut y: usize = action[1].try_into().unwrap();
+        let cell_idx = x * 6 + y;
+        let (piece, alt_piece, is_first_piece) = if cell_idx % 2 == 0 {
+            (state[cell_idx / 2] >> 4, state[cell_idx / 2] & 15, true)
         } else {
-            state[ceil_idx / 2] & 15
+            (state[cell_idx / 2] & 15, state[cell_idx / 2] >> 4, false)
         };
         if !(x < 6
             && y < 6
@@ -199,11 +206,138 @@ impl Gyges {
             }));
         }
 
-        // Checks moves
-        // TODO
-
-        // Update game state
+        // Perform moves
         let mut new_state = state.to_vec();
+        let mut jump_power: u8 = 0; // Power of the future jump (1)
+        let mut saved_piece: u8 = 0; // Saved piece for future placement (2)
+        let mut fly: usize = 0; // Save loop-index for future placement (2)
+        for i in 1..action.len() / 3 {
+            // Check valid pos diff
+            let new_x: usize = action[i * 3].try_into().unwrap();
+            let new_y: usize = action[i * 3 + 1].try_into().unwrap();
+            let dist = self.manhattan_distance([x, y], [new_x, new_y]);
+            if !(new_x < 6
+                && new_y < 6
+                && match if jump_power > 0 {
+                    let tmp = jump_power;
+                    jump_power = 0;
+                    tmp
+                } else {
+                    piece
+                } {
+                    1 => dist == 1,
+                    2 => dist == 2,
+                    3 => dist % 2 == 1,
+                    _ => false,
+                })
+            {
+                return Err(GygesError::InvalidOperation(InvalidOperation {
+                    message: "Invalid move".to_string(),
+                }));
+            }
+
+            // Load new pos from board
+            let cell_idx_new = new_x * 6 + new_y;
+            let (cell, alt_cell, is_first_cell) = if cell_idx_new % 2 == 0 {
+                (
+                    new_state[cell_idx_new / 2] >> 4,
+                    new_state[cell_idx_new / 2] & 15,
+                    true,
+                )
+            } else {
+                (
+                    new_state[cell_idx_new / 2] & 15,
+                    new_state[cell_idx_new / 2] >> 4,
+                    false,
+                )
+            };
+
+            // Empty destination -> End of turn
+            if cell == 0 {
+                new_state[cell_idx / 2] = if is_first_piece {
+                    alt_piece
+                } else {
+                    alt_piece << 4
+                };
+                new_state[cell_idx_new / 2] = if is_first_cell {
+                    piece << 4 | alt_cell
+                } else {
+                    alt_cell << 4 | piece
+                };
+                break;
+            // Occupied destination -> Jump or Replace?
+            } else {
+                let choice: usize = action[i * 3 + 2].try_into().unwrap();
+                match choice {
+                    // Jump
+                    1 => {
+                        jump_power = cell;
+                        x = new_x;
+                        y = new_y;
+                        continue;
+                    }
+                    // Replace
+                    2 => {
+                        fly = i + 1 as usize;
+                        saved_piece = cell;
+                        // Move piece to new cell
+                        new_state[cell_idx / 2] = if is_first_piece {
+                            alt_piece
+                        } else {
+                            alt_piece << 4
+                        };
+                        new_state[cell_idx_new / 2] = if is_first_cell {
+                            piece << 4 | alt_cell
+                        } else {
+                            alt_cell << 4 | piece
+                        };
+                        break;
+                    }
+                    _ => {
+                        return Err(GygesError::InvalidOperation(InvalidOperation {
+                            message: "Only jump=1 & replace=2 are allowed".to_string(),
+                        }));
+                    }
+                }
+            }
+        }
+
+        // If replacement was used
+        if fly > 0 {
+            let new_x: usize = action[fly * 3].try_into().unwrap();
+            let new_y: usize = action[fly * 3 + 1].try_into().unwrap();
+
+            // Load new pos from board
+            let cell_idx_new = new_x * 6 + new_y;
+            let (cell, alt_cell, is_first_cell) = if cell_idx_new % 2 == 0 {
+                (
+                    new_state[cell_idx_new / 2] >> 4,
+                    new_state[cell_idx_new / 2] & 15,
+                    true,
+                )
+            } else {
+                (
+                    new_state[cell_idx_new / 2] & 15,
+                    new_state[cell_idx_new / 2] >> 4,
+                    false,
+                )
+            };
+
+            // Place it if valid
+            if new_x < 6 && new_y < 6 && cell == 0 {
+                new_state[cell_idx_new / 2] = if is_first_cell {
+                    saved_piece << 4 | alt_cell
+                } else {
+                    alt_cell << 4 | saved_piece
+                };
+            } else {
+                return Err(GygesError::InvalidOperation(InvalidOperation {
+                    message: "Invalid placement".to_string(),
+                }));
+            }
+        }
+
+        // Update new state
         new_state[31] = if is_player_one { 2 } else { 1 };
         self.games
             .setter(game_id)
@@ -215,7 +349,7 @@ impl Gyges {
             Played {
                 game_id,
                 player: sender,
-                actions: vec![U256::from(x), U256::from(y), U256::from(piece)],
+                action,
             },
         );
         Ok(())
@@ -243,8 +377,8 @@ impl Gyges {
     pub fn gen_new_board(&self) -> FixedBytes<32> {
         let timestamp = self.vm().block_timestamp();
         let mut seed = timestamp;
-        let mut first_row: [u8; 6] = [1, 1, 2, 2, 3, 3];
-        let mut last_row: [u8; 6] = [3, 3, 2, 2, 1, 1];
+        let mut first_row: [u8; 6] = [1, 2, 3, 1, 2, 3];
+        let mut last_row: [u8; 6] = [3, 2, 1, 3, 2, 1];
 
         self.shuffle(&mut first_row, &mut seed);
         self.shuffle(&mut last_row, &mut seed);
@@ -270,6 +404,10 @@ impl Gyges {
             .concat()
             .as_slice(),
         )
+    }
+
+    pub fn manhattan_distance(&self, from: [usize; 2], to: [usize; 2]) -> u8 {
+        ((from[0] as i8 - to[0] as i8).abs() + (from[1] as i8 - to[1] as i8).abs()) as u8
     }
 }
 
