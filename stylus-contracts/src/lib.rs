@@ -411,7 +411,7 @@ impl Gyges {
                     (last_row[2] << 4) | last_row[3],
                     (last_row[4] << 4) | last_row[5],
                 ], // 1 row (3 bytes)
-                [0; 2].to_vec(),  // padding (2 bytes)
+                [0; 2].to_vec(),  // winning cells at top/bottom (2x1 byte)
                 timestamp.to_be_bytes()[4..].to_vec(), // start (4 bytes)
                 [0, 0, 0, 0, 0, 0, 0, 1].to_vec(), // end=null (4 bytes) + turn=1 (4 bytes)
             ]
