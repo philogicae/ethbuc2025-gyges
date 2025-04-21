@@ -19,13 +19,14 @@ if player1 == "0x0000000000000000000000000000000000000000":
     exit()
 
 state = state[2:]
-board, win_top, win_bottom, start, end, turn = (
+board, win_top, win_bottom, start, end, turn, player_turn = (
     state[0:36],
     state[36:38],
     state[38:40],
     state[40:48],
     state[48:56],
-    state[56:],
+    state[56:62],
+    state[62:64],
 )
 
 
@@ -36,9 +37,12 @@ def timestamp_to_date(timestamp):
 
 
 rprint("\n* ------- STATE --------- *")
-rprint(f"State: {board}-{win_top}-{win_bottom}-{start}-{end}-{turn}")
+rprint(f"State: {board}-{win_top}-{win_bottom}-{start}-{end}-{turn}-{player_turn}")
+player_turn = int(player_turn)
 rprint(
-    f"Start: {timestamp_to_date(start)}\nEnd: {timestamp_to_date(end) if end != '00000000' else '-'}\n{'Turn' if end == '00000000' else 'Winner'}: {'player 1' if int(turn) == 1 else 'player 2'}"
+    f"Start: {timestamp_to_date(start)}\nEnd: {timestamp_to_date(end) if end != '00000000' else '-'}"
+    f"\nTurn: {int(turn)}{'a' if player_turn == 1 else 'b'}"
+    f"\n{'Player turn' if end == '00000000' else 'Winner'}: {player_turn}"
 )
 
 

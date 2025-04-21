@@ -18,7 +18,7 @@ sol_storage! {
     pub struct Game { // by id
         address player_one;
         address player_two;
-        bytes32 state; // bytes: 6x6-board=18, padding=2, start=4, end=4, turn=4
+        bytes32 state; // bytes: 6x6-board=18, winning-cells=2, start=4, end=4, turn=3, player-turn=1
     }
 
     pub struct Player { // by address
@@ -352,7 +352,20 @@ impl Gyges {
         // TODO: Check win condition
 
         // Update new state
-        new_state[31] = if is_player_one { 2 } else { 1 };
+        if is_player_one {
+            // Same turn, but next move is for player 2
+            new_state[31] = 2
+        } else {
+            // Copy previous turn value and increment by 1
+            let turn =
+                ((new_state[28] as u32) << 16 | (new_state[29] as u32) << 8 | new_state[30] as u32)
+                    + 1;
+            new_state[28] = ((turn >> 16) & 0xFF) as u8;
+            new_state[29] = ((turn >> 8) & 0xFF) as u8;
+            new_state[30] = (turn & 0xFF) as u8;
+            // New turn, next move is for player 1
+            new_state[31] = 1
+        };
         self.games
             .setter(game_id)
             .state
@@ -413,7 +426,7 @@ impl Gyges {
                 ], // 1 row (3 bytes)
                 [0; 2].to_vec(),  // winning cells at top/bottom (2x1 byte)
                 timestamp.to_be_bytes()[4..].to_vec(), // start (4 bytes)
-                [0, 0, 0, 0, 0, 0, 0, 1].to_vec(), // end=null (4 bytes) + turn=1 (4 bytes)
+                [0, 0, 0, 0, 0, 0, 1, 1].to_vec(), // end=null (4 bytes) + turn=1 (3 bytes) + player-turn=1 (1 byte)
             ]
             .concat()
             .as_slice(),
